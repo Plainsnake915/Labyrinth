@@ -9,6 +9,10 @@ WALL_COLOR = (145, 151, 164)
 EXIT_COLOR = (221, 180, 75)
 LOCKED_EXIT_COLOR = (125, 68, 76)
 SOUL_COLOR = (230, 238, 255)
+TRAP_COLOR = (190, 75, 65)
+BOOST_COLOR = (90, 220, 245)
+LIGHT_COLOR = (255, 220, 105)
+ITEM_SPAWN_PROBABILITIES = {"beartrap": 0.03, "boost": 0.03, "light": 0.04}
 
 
 class Cell:
@@ -73,12 +77,51 @@ class Soul:
         pygame.draw.circle(screen, (135, 174, 220), center, max(4, cell_size // 5), 1)
 
 
+class MazeItem:
+    def __init__(self, kind, position):
+        self.kind = kind
+        self.position = position
+
+    def draw(self, screen, cell_size):
+        col, row = self.position
+        center = (col * cell_size + cell_size // 2, row * cell_size + cell_size // 2)
+        if self.kind == "beartrap":
+            size = max(8, cell_size // 2)
+            bounds = (center[0] - size // 2, center[1] - size // 2, size, size)
+            pygame.draw.rect(screen, TRAP_COLOR, bounds, border_radius=2)
+            pygame.draw.line(screen, (250, 220, 205), bounds[:2], (bounds[0] + size, bounds[1] + size), 2)
+            pygame.draw.line(screen, (250, 220, 205), (bounds[0] + size, bounds[1]), (bounds[0], bounds[1] + size), 2)
+        elif self.kind == "boost":
+            points = (
+                (center[0], center[1] - cell_size // 3),
+                (center[0] - cell_size // 6, center[1] + 1),
+                (center[0], center[1] + 1),
+                (center[0], center[1] + cell_size // 3),
+                (center[0] + cell_size // 6, center[1] - 2),
+                (center[0], center[1] - 2),
+            )
+            pygame.draw.polygon(screen, BOOST_COLOR, points)
+        else:
+            pygame.draw.circle(screen, LIGHT_COLOR, center, max(5, cell_size // 5))
+            pygame.draw.circle(screen, (255, 250, 210), center, max(3, cell_size // 9))
+            pygame.draw.line(
+                screen,
+                LIGHT_COLOR,
+                (center[0], center[1] - cell_size // 3),
+                (center[0], center[1] - cell_size // 2),
+                2,
+            )
+
+
 class MazeGrid:
-    def __init__(self, rows, cols, cell_size, soul_count=3):
+    def __init__(self, rows, cols, cell_size, soul_count=3, item_probabilities=None):
         self.rows = rows
         self.cols = cols
         self.cell_size = cell_size
         self.soul_count = soul_count
+        self.item_probabilities = dict(item_probabilities or ITEM_SPAWN_PROBABILITIES)
+        if sum(self.item_probabilities.values()) > 1:
+            raise ValueError("Item spawn probabilities must sum to at most 1")
         self.cells = []
         self.items = []
         self.souls = []
@@ -101,6 +144,24 @@ class MazeGrid:
             soul = Soul(position)
             self.souls.append(soul)
             self.add_item(soul)
+        self._spawn_random_items()
+
+    def _spawn_random_items(self):
+        occupied = {(0, 0), self.exit_position}
+        occupied.update(soul.position for soul in self.souls)
+        for row in range(self.rows):
+            for col in range(self.cols):
+                position = (col, row)
+                if position in occupied:
+                    continue
+                roll = random.random()
+                cumulative_probability = 0
+                for kind, probability in self.item_probabilities.items():
+                    cumulative_probability += probability
+                    if roll < cumulative_probability:
+                        self.add_item(MazeItem(kind, position))
+                        occupied.add(position)
+                        break
 
     @property
     def souls_remaining(self):
@@ -114,7 +175,14 @@ class MazeGrid:
                 return True
         return False
 
-    def can_move(self, col, row, direction):
+    def collect_item_at(self, col, row):
+        for item in self.items:
+            if isinstance(item, MazeItem) and item.position == (col, row):
+                self.items.remove(item)
+                return item.kind
+        return None
+
+    def can_move(self, col, row, direction, ignore_walls=False):
         moves = {
             "up": (0, -1, "top"),
             "right": (1, 0, "right"),
@@ -130,7 +198,7 @@ class MazeGrid:
         if not (
             0 <= next_col < self.cols
             and 0 <= next_row < self.rows
-            and not self.cells[row][col].walls[wall]
+            and (ignore_walls or not self.cells[row][col].walls[wall])
         ):
             return False
         return True
