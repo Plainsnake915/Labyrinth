@@ -1,27 +1,34 @@
+"""Maze cells, procedural generation, pathfinding, and in-maze objects."""
+
 import heapq
 import random
 
 import pygame
 
-
-BACKGROUND = (8, 12, 24)
-WALL_COLOR = (145, 151, 164)
-EXIT_COLOR = (221, 180, 75)
-LOCKED_EXIT_COLOR = (125, 68, 76)
-SOUL_COLOR = (230, 238, 255)
-TRAP_COLOR = (190, 75, 65)
-BOOST_COLOR = (90, 220, 245)
-LIGHT_COLOR = (255, 220, 105)
-ITEM_SPAWN_PROBABILITIES = {"beartrap": 0.03, "boost": 0.03, "light": 0.04}
+from .settings import (
+    BACKGROUND,
+    BOOST_COLOR,
+    EXIT_COLOR,
+    ITEM_SPAWN_PROBABILITIES,
+    LIGHT_COLOR,
+    LOCKED_EXIT_COLOR,
+    SOUL_COLOR,
+    TRAP_COLOR,
+    WALL_COLOR,
+)
 
 
 class Cell:
+    """One maze tile, represented by four closed wall edges."""
+
     def __init__(self):
         self.walls = {"top": True, "right": True, "bottom": True, "left": True}
         self.visited = False
 
 
 class MazeGenerator:
+    """Build a perfect maze with randomized depth-first backtracking."""
+
     def __init__(self, rows, cols):
         self.rows = rows
         self.cols = cols
@@ -37,6 +44,7 @@ class MazeGenerator:
             (-1, 0, "left", "right"),
         )
 
+        # Carve a random unvisited neighbor; popping at dead ends backtracks.
         while stack:
             col, row = stack[-1]
             neighbors = []
@@ -63,6 +71,8 @@ class MazeGenerator:
 
 
 class Soul:
+    """Collectible required to unlock the maze exit."""
+
     def __init__(self, position):
         self.position = position
         self.collected = False
@@ -73,11 +83,14 @@ class Soul:
 
         col, row = self.position
         center = (col * cell_size + cell_size // 2, row * cell_size + cell_size // 2)
-        pygame.draw.circle(screen, SOUL_COLOR, center, max(4, cell_size // 5))
-        pygame.draw.circle(screen, (135, 174, 220), center, max(4, cell_size // 5), 1)
+        radius = max(4, cell_size // 5)
+        pygame.draw.circle(screen, SOUL_COLOR, center, radius)
+        pygame.draw.circle(screen, (135, 174, 220), center, radius, 1)
 
 
 class MazeItem:
+    """A collectible trap, wall-pass boost, or full-light power-up."""
+
     def __init__(self, kind, position):
         self.kind = kind
         self.position = position
@@ -114,6 +127,8 @@ class MazeItem:
 
 
 class MazeGrid:
+    """Own the grid, collectibles, exit state, navigation, and maze drawing."""
+
     def __init__(self, rows, cols, cell_size, soul_count=3, item_probabilities=None):
         self.rows = rows
         self.cols = cols
@@ -195,18 +210,15 @@ class MazeGrid:
         dx, dy, wall = moves[direction]
         next_col = col + dx
         next_row = row + dy
-        if not (
+        return (
             0 <= next_col < self.cols
             and 0 <= next_row < self.rows
             and (ignore_walls or not self.cells[row][col].walls[wall])
-        ):
-            return False
-        return True
+        )
 
     def find_path(self, start, goal):
-        if not self._in_bounds(start) or not self._in_bounds(goal):
-            return []
-        if start == goal:
+        """Use A* and return the ordered steps after start, or [] if unreachable."""
+        if not self._in_bounds(start) or not self._in_bounds(goal) or start == goal:
             return []
 
         frontier = [(self._heuristic(start, goal), 0, start)]
@@ -272,9 +284,7 @@ class MazeGrid:
             for col in range(self.cols)
             if (col, row) not in excluded
         ]
-        if not available:
-            return 0, 0
-        return random.choice(available)
+        return random.choice(available) if available else (0, 0)
 
     def draw(self, screen):
         self._draw_exit(screen)
