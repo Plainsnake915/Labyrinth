@@ -20,11 +20,11 @@ MAX_LIGHT_RADIUS = math.ceil(math.hypot(WIDTH, HEIGHT))
 FULL_LIGHT_DURATION_MS = 10000
 LIGHT_BOOST_TRANSITION_MS = 700
 DARKNESS_ALPHA = 248
-FLASHLIGHT_RANGE = 300
+FLASHLIGHT_RANGE = 150
 FLASHLIGHT_HALF_ANGLE = math.radians(23)
-FLASHLIGHT_MAX_CHARGE_MS = 5000
+FLASHLIGHT_MAX_CHARGE_MS = 3000
 FLASHLIGHT_DRAIN_RATE = 1.0
-FLASHLIGHT_RECHARGE_RATE = 0.5
+FLASHLIGHT_RECHARGE_RATE = 1.0
 BOSS_LIGHT_RESET_MS = 2000
 BOSS_COLOR = (28, 27, 38)
 BOSS_EYE_COLOR = (245, 70, 68)
@@ -128,12 +128,30 @@ class BossEnemy:
     def touches(self, player):
         return (self.col, self.row) == (player.col, player.row)
 
+    @property
+    def visual_scale(self):
+        exposure = min(self.light_exposure_ms / BOSS_LIGHT_RESET_MS, 1.0)
+        return 1.0 - exposure * 0.9
+
     def draw(self, screen, cell_size):
         center = (self.col * cell_size + cell_size // 2, self.row * cell_size + cell_size // 2)
-        radius = cell_size // 3
+        radius = max(1, round(cell_size // 3 * self.visual_scale))
+        eye_radius = max(1, round(2 * self.visual_scale))
+        eye_offset = max(1, round(4 * self.visual_scale))
+        eye_y_offset = max(1, round(2 * self.visual_scale))
         pygame.draw.circle(screen, BOSS_COLOR, center, radius)
-        pygame.draw.circle(screen, BOSS_EYE_COLOR, (center[0] - 4, center[1] - 2), 2)
-        pygame.draw.circle(screen, BOSS_EYE_COLOR, (center[0] + 4, center[1] - 2), 2)
+        pygame.draw.circle(
+            screen,
+            BOSS_EYE_COLOR,
+            (center[0] - eye_offset, center[1] - eye_y_offset),
+            eye_radius,
+        )
+        pygame.draw.circle(
+            screen,
+            BOSS_EYE_COLOR,
+            (center[0] + eye_offset, center[1] - eye_y_offset),
+            eye_radius,
+        )
 
     def draw_debug(self, screen, cell_size):
         points = [(self.col * cell_size + cell_size // 2, self.row * cell_size + cell_size // 2)]
@@ -612,12 +630,14 @@ async def main():
             screen.blit(font.render(status, True, TEXT_COLOR), (10, 8))
             if debug_mode:
                 debug_text = (
-                    f"X: debug on | Boss target: {boss.predicted_position} | "
-                    f"Markov transitions: {predictor.transition_count} | "
-                    + ", ".join(ghost.state for ghost in ghosts)
+                    f"X: debug on | Boss target: {boss.predicted_position} | ",
+                    f"Markov transitions: {predictor.transition_count} | ",
+                    ", ".join(ghost.state for ghost in ghosts)
                 )
-                screen.blit(font.render(debug_text, True, PATH_COLOR), (10, 32))
+                for i in range(len(debug_text)):
+                    screen.blit(font.render(debug_text[i], True, PATH_COLOR), (10, 32 + i * 24))
             draw_flashlight_charge(screen, player, font)
+            screen.blit(font.render("X:debug mode|WASD:move|R:restart", True, TEXT_COLOR), (8, HEIGHT - 58))
         fade_center = (
             player.col * CELL_SIZE + CELL_SIZE // 2,
             player.row * CELL_SIZE + CELL_SIZE // 2,
