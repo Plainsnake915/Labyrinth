@@ -4,7 +4,7 @@ import math
 
 import pygame
 
-from .settings import (
+from settings import (
     CELL_SIZE,
     DARKNESS_ALPHA,
     FADE_DURATION_MS,

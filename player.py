@@ -2,7 +2,7 @@
 
 import pygame
 
-from .settings import (
+from settings import (
     CELL_SIZE,
     FLASHLIGHT_DRAIN_RATE,
     FLASHLIGHT_MAX_CHARGE_MS,

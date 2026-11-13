@@ -1,6 +1,6 @@
 """Player-movement analytics used by the predictive shadow boss."""
 
-from .settings import DIRECTIONS, MOVES
+from settings import DIRECTIONS, MOVES
 
 
 class MarkovPredictor:

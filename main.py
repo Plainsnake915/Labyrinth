@@ -1,9 +1,24 @@
-"""Launch Haunted Maze from the repository root."""
+# /// script
+# dependencies = ["pygame-ce"]
+# ///
+
+"""Launch the standalone game entry point."""
 
 import asyncio
 
-from haunted_maze.game import main as run_game
+from game import main as run_game
+
+
+def _run_game_safely(coro):
+    """Support desktop and browser-managed event loops."""
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        asyncio.run(coro)
+        return
+    loop = asyncio.get_running_loop()
+    loop.create_task(coro)
 
 
 if __name__ == "__main__":
-    asyncio.run(run_game())
+    _run_game_safely(run_game())

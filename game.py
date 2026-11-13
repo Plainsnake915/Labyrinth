@@ -4,12 +4,12 @@ import asyncio
 
 import pygame
 
-from .ai import MarkovPredictor
-from .enemies import create_boss, create_ghosts
-from .lighting import FadeTransition, draw_darkness, draw_flashlight, draw_flashlight_charge
-from .maze import MazeGrid
-from .player import Player
-from .settings import BACKGROUND, CELL_SIZE, COLS, HEIGHT, PATH_COLOR, ROWS, TEXT_COLOR, WIDTH
+from ai import MarkovPredictor
+from enemies import create_boss, create_ghosts
+from lighting import FadeTransition, draw_darkness, draw_flashlight, draw_flashlight_charge
+from maze import MazeGrid
+from player import Player
+from settings import BACKGROUND, CELL_SIZE, COLS, HEIGHT, PATH_COLOR, ROWS, TEXT_COLOR, WIDTH
 
 
 class Game:

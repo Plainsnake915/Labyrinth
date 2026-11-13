@@ -4,8 +4,8 @@ import random
 
 import pygame
 
-from .lighting import point_in_flashlight_cone
-from .settings import (
+from lighting import point_in_flashlight_cone
+from settings import (
     BOSS_COLOR,
     BOSS_EYE_COLOR,
     BOSS_MOVE_INTERVAL_MS,

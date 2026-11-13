@@ -5,7 +5,7 @@ import random
 
 import pygame
 
-from .settings import (
+from settings import (
     BACKGROUND,
     BOOST_COLOR,
     EXIT_COLOR,
