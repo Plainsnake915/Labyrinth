@@ -25,6 +25,7 @@ class Game:
         self.prompt_font = pygame.font.Font(None, 26)
         self.debug_mode = False
         self.fade = FadeTransition()
+        self.predictor = MarkovPredictor()
         self.reset_world()
 
     def reset_world(self):
@@ -32,7 +33,6 @@ class Game:
         self.maze = MazeGrid(ROWS, COLS, CELL_SIZE)
         self.player = Player()
         self.ghosts = create_ghosts(self.maze)
-        self.predictor = MarkovPredictor()
         self.boss = create_boss(self.maze)
         self.won = False
         self.game_over = False
