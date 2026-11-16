@@ -1,5 +1,6 @@
 """Ghost FSMs and the Markov-predictive shadow boss."""
 
+import math
 import random
 
 import pygame
@@ -21,6 +22,35 @@ from settings import (
 )
 
 
+def draw_directional_path(screen, points, color, width=2, arrow_size=7):
+    """Draw a path line with arrowheads showing movement direction."""
+    if len(points) < 2:
+        return
+
+    pygame.draw.lines(screen, color, False, points, width)
+    for start, end in zip(points[:-1], points[1:]):
+        angle = math.atan2(end[1] - start[1], end[0] - start[0])
+        left_angle = angle - math.pi / 6
+        right_angle = angle + math.pi / 6
+        left_tip = (
+            end[0] - arrow_size * math.cos(left_angle),
+            end[1] - arrow_size * math.sin(left_angle),
+        )
+        right_tip = (
+            end[0] - arrow_size * math.cos(right_angle),
+            end[1] - arrow_size * math.sin(right_angle),
+        )
+        pygame.draw.polygon(
+            screen,
+            color,
+            [
+                end,
+                left_tip,
+                right_tip,
+            ],
+        )
+
+
 class BossEnemy:
     """Predict player movement, navigate toward an ambush, and retreat from light."""
 
@@ -31,6 +61,7 @@ class BossEnemy:
         self.move_timer = 0
         self.target = position
         self.path = []
+        
         self.predicted_position = position
         self.light_exposure_ms = 0
 
@@ -71,12 +102,14 @@ class BossEnemy:
         self.predicted_position = (predicted_col, predicted_row)
         self.target = self.predicted_position
         self.path = maze.find_path((self.col, self.row), self.target)
+       
         self.move_timer += elapsed_ms
         if self.move_timer >= self.move_interval:
             self.move_timer = 0
             if self.path:
                 self.col, self.row = self.path.pop(0)
                 self.path = maze.find_path((self.col, self.row), self.target)
+                
 
     def touches(self, player):
         return (self.col, self.row) == (player.col, player.row)
@@ -97,8 +130,10 @@ class BossEnemy:
         pygame.draw.circle(screen, BOSS_EYE_COLOR, (center[0] + eye_offset, center[1] - eye_y), eye_radius)
 
     def draw_debug(self, screen, cell_size=CELL_SIZE):
-        points = [(self.col * cell_size + cell_size // 2, self.row * cell_size + cell_size // 2)]
-        points.extend((col * cell_size + cell_size // 2, row * cell_size + cell_size // 2) for col, row in self.path)
+        points = [
+            (cell * cell_size + cell_size // 2, row * cell_size + cell_size // 2)
+            for cell, row in self.path
+        ]
         if len(points) > 1:
             pygame.draw.lines(screen, BOSS_PATH_COLOR, False, points, 2)
         col, row = self.predicted_position
@@ -122,6 +157,7 @@ class GhostNPC:
         self.move_interval = GHOST_MOVE_INTERVAL_MS
         self.move_timer = 0
         self.path = []
+        self.debug_path = []
         self.route = list(route) if route else []
         self.route_index = self.route.index(position) if position in self.route else None
 
@@ -133,6 +169,7 @@ class GhostNPC:
             self.state = "Wander"
             if self.target is None or position == self.target:
                 self.target = maze.random_position(excluded=(position, maze.exit_position))
+                self.debug_path = []
         else:
             if not self.route:
                 self.route = [self.soul.position] + maze.find_path(
@@ -177,6 +214,13 @@ class GhostNPC:
                         self.route_index = self.route.index(self.start_position)
                 self.path = []
 
+        if self.state == "Wander":
+            self.debug_path = [position] + list(self.path) if self.path else [position]
+        elif self.route:
+            self.debug_path = list(self.route)
+        else:
+            self.debug_path = [position] + list(self.path) if self.path else [position]
+
     def draw(self, screen, cell_size=CELL_SIZE):
         center = (self.col * cell_size + cell_size // 2, self.row * cell_size + cell_size // 2)
         pygame.draw.circle(screen, GHOST_COLOR, center, cell_size // 3)
@@ -184,10 +228,14 @@ class GhostNPC:
         pygame.draw.circle(screen, GHOST_EYE_COLOR, (center[0] + 4, center[1] - 2), 2)
 
     def draw_path(self, screen, cell_size=CELL_SIZE):
-        points = [(self.col * cell_size + cell_size // 2, self.row * cell_size + cell_size // 2)]
-        points.extend((col * cell_size + cell_size // 2, row * cell_size + cell_size // 2) for col, row in self.path)
+        points = [
+            (cell * cell_size + cell_size // 2, row * cell_size + cell_size // 2)
+            for cell, row in self.debug_path
+        ]
+        if self.state == "Chase" and len(points) > 1:
+            points = list(reversed(points))
         if len(points) > 1:
-            pygame.draw.lines(screen, PATH_COLOR, False, points, 2)
+            draw_directional_path(screen, points, PATH_COLOR, width=2, arrow_size=6)
 
 
 def create_ghosts(maze):
